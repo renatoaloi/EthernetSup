@@ -1,16 +1,16 @@
 /*
-  Morse.h - Library for flashing Morse code.
-  Created by David A. Mellis, November 2, 2007.
+  EthernetSup.h - Library for Arduino Ethernet.
+  Created by Renato Aloi, Dec 26, 2013.
   Released into the public domain.
 */
-#ifndef Morse_h
-#define Morse_h
+#ifndef EthernetSup_h
+#define EthernetSup_h
 
 #include "Arduino.h"
 #include "html.h"
 
-#define PGM_CHUNK       15
-#define MAX_BUTTONS     10
+#define PGM_CHUNK       10
+#define MAX_BUTTONS     8
 #define MAX_TEXT_BUTTON 19
 #define MAX_TEXT_REQ    30
 

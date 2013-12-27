@@ -1,3 +1,9 @@
+/*
+  EthernetSup.cpp - Library for Arduino Ethernet.
+  Created by Renato Aloi, Dec 26, 2013.
+  Released into the public domain.
+*/
+
 #include <SPI.h>
 #include <Ethernet.h>
 

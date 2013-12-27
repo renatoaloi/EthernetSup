@@ -1,3 +1,9 @@
+/*
+  html.h - HTML strings for EthernetSup.
+  Created by Renato Aloi, Dec 26, 2013.
+  Released into the public domain.
+*/
+
 #define P(name)	static const prog_uchar name[] PROGMEM
 
 P(head_ini) = "<!DOCTYPE HTML>"
@@ -8,7 +14,7 @@ P(head_fim) = "</HEAD>"
 "<BODY>";
 
 P(div_ini) = "<div class='super painel'>"
-"<p align='center'>Painel de Controle</p>";
+"<p align='center'>Curso Arduino Automation</p>";
 
 P(div_fim) = "<p align='center' class='small'>"
 "<a href='#' class='small'>Powered by Serial Link</a></p>"

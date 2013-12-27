@@ -26,7 +26,7 @@ class EthernetSup
     void addButton(char pin, char *texton, char *textoff, char type);
     char getLastClickedButton();
     char getButtonState(char id);
-  private:
+  //private:
     void addButton(char pin, char *texton, char *textoff, char type, char state);
 };
 

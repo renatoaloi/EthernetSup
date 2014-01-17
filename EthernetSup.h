@@ -11,11 +11,17 @@
 
 #define PGM_CHUNK       10
 #define MAX_BUTTONS     8
-#define MAX_TEXT_BUTTON 19
-#define MAX_TEXT_REQ    30
+#define MAX_TEXT_BUTTON 11
+#define MAX_TEXT_REQ    50
 
-#define FLIP_BUTTON     1
-#define SWITCH_BUTTON   0
+#define ONOFF_BUTTON    1
+#define PULSE_BUTTON    0
+#define DIMMER_BUTTON   2
+
+#define DIMMER_MAX      255
+#define DIMMER_MIN      0
+#define DIMMER_UP       1
+#define DIMMER_DOWN     0
 
 class EthernetSup
 {
@@ -23,11 +29,18 @@ class EthernetSup
     EthernetSup();
     void begin(unsigned char *_mac, unsigned char *_ip);
     unsigned char available();
-    void addButton(char pin, char *texton, char *textoff, char type);
+    
     char getLastClickedButton();
     char getButtonState(char id);
+    char getDimmerValue();
+    void clearButtonIdx();
   //private:
-    void addButton(char pin, char *texton, char *textoff, char type, char state);
+
+    void addButton(char pin, char *texton, char type);
+    void addButton(char pin, char *texton, char type, char state);
+    void addDimmer(char id, char *textdim, unsigned char iniValue, char direction);
+    void addDimmer(char id, char *textdim, unsigned char iniValue, char direction, char step);
+    void addDimmer(char id, char *textdim, unsigned char iniValue, char direction, char step, char type);
 };
 
 #endif

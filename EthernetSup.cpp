@@ -17,8 +17,12 @@ static char lastButton = 0;
 static char buttonId[MAX_BUTTONS];
 static char buttonType[MAX_BUTTONS];
 static char buttonState[MAX_BUTTONS];
-static char buttonTextOn[MAX_BUTTONS][MAX_TEXT_BUTTON];
-static char buttonTextOff[MAX_BUTTONS][MAX_TEXT_BUTTON];
+static char buttonText[MAX_BUTTONS][MAX_TEXT_BUTTON];
+//static char buttonTextOn[MAX_BUTTONS][MAX_TEXT_BUTTON];
+//static char buttonTextOff[MAX_BUTTONS][MAX_TEXT_BUTTON];
+static char dimmerStep[MAX_BUTTONS];
+//static char buttonTextDim[MAX_BUTTONS][MAX_TEXT_BUTTON];
+static unsigned char dimmerValue[MAX_BUTTONS];
 
 
 static void printP(EthernetClient client, const prog_uchar *str);
@@ -26,6 +30,7 @@ static void setButtonId(char id);
 static char getButton(int id);
 static char getButtonId(char* requestText);
 static void addButton(char pin, char *texton, char *textoff, char type, char state);
+static char getButtonValue(char* requestText, char* compareTo, char size);
 
 
 EthernetServer server(80);
@@ -48,8 +53,9 @@ void EthernetSup::begin(unsigned char *_mac, unsigned char *_ip)
         buttonState[i] = 0;
         for (char j = 0; j < MAX_TEXT_BUTTON; j++)
         {
-            buttonTextOn[i][j] = 0;
-            buttonTextOff[i][j] = 0;
+          buttonText[i][j] = 0;
+            //buttonTextOn[i][j] = 0;
+            //buttonTextOff[i][j] = 0;
         }
     }
 }
@@ -106,36 +112,118 @@ unsigned char EthernetSup::available()
           //Serial.println(t, DEC);
           
       	  setButtonId(t);
+
       	  if (buttonIdx != -1)
       	  {
-            if (buttonType[buttonIdx] == FLIP_BUTTON)
+            if (buttonType[buttonIdx] == ONOFF_BUTTON)
       	    {
       	      buttonState[buttonIdx] = (buttonState[buttonIdx] ? 0 : 1);
       	    }
+            else if (buttonType[buttonIdx] == DIMMER_BUTTON)
+            {
+              if (getButtonValue(requestText, "button_value=up", 15) != -1)
+              {
+                  if (dimmerValue[buttonIdx] + dimmerStep[buttonIdx] < 255)
+                    dimmerValue[buttonIdx] += dimmerStep[buttonIdx];
+                  else
+                    dimmerValue[buttonIdx] = 255;
+              }
+              else if (getButtonValue(requestText, "button_value=down", 17) != -1)
+              {
+                  if (dimmerValue[buttonIdx] - dimmerStep[buttonIdx] > 0)
+                    dimmerValue[buttonIdx] -= dimmerStep[buttonIdx];
+                  else
+                    dimmerValue[buttonIdx] = 0;
+              }
+
+              
+            }
       	  }
       
-            //Serial.println(buttonIdx, DEC);
-        
+          //Serial.println(buttonIdx, DEC);
+          
           printP(client, head_ini);
           printP(client, stylesheet);
           printP(client, head_fim);
           printP(client, div_ini);
+
+          
+
+          //printP(client, label_ini);
+          //client.print("buttonDown: ");
+          //client.print(getButtonValue(requestText, "button_value=down", 17), DEC);
+          //printP(client, label_fim);
           
           for (int i = 0; i < MAX_BUTTONS; i++)
           {
             if (buttonType[i] != -1)
             {
-              
-              printP(client, button_ini);
-              // link do botao
-              client.print("/?button_id=");
-              client.print(buttonId[i], DEC);
-              
-              //Serial.println(buttonId[i], DEC);
-              
-              printP(client, button_mid1);
-              
-              
+              if (buttonType[i] == DIMMER_BUTTON)
+              {
+                printP(client, dimmer_ini1);
+                //client.print("Velocidade ventilador: ");
+                //client.print("10%");
+
+                client.print(buttonText[i]);
+
+                // converting to percent
+                int val1 = map(dimmerValue[i], 0, 255, 0, 100);
+                client.print(val1, DEC);
+                client.print("%");
+
+                printP(client, dimmer_ini2);
+
+                // link do dimmer UP
+                client.print("/?button_value=down");
+                client.print("&button_id=");
+                client.print(buttonId[i], DEC);
+                
+
+                printP(client, dimmer_mid11); 
+
+                client.print("green");
+
+                printP(client, dimmer_mid12);
+
+                printP(client, dimmer_space);
+                printP(client, dimmer_space);
+                client.print("-");
+                printP(client, dimmer_space);
+                printP(client, dimmer_space);
+
+
+                printP(client, dimmer_mid2); 
+
+                // link do dimmer DOWN
+                client.print("/?button_value=up");
+                client.print("&button_id=");
+                client.print(buttonId[i], DEC);
+
+
+                printP(client, dimmer_mid21);
+
+                client.print("green");
+
+                printP(client, dimmer_mid22);
+
+                printP(client, dimmer_space);
+                printP(client, dimmer_space);
+                client.print("+");
+                printP(client, dimmer_space);
+                printP(client, dimmer_space);
+
+                printP(client, dimmer_fim); 
+              }
+              else
+              {
+                printP(client, button_ini);
+                // link do botao
+                client.print("/?button_id=");
+                client.print(buttonId[i], DEC);
+                
+                //Serial.println(buttonId[i], DEC);
+                printP(client, button_mid1);
+                
                 // cor do botao
                 if (buttonState[i] == 1)
                 {
@@ -146,22 +234,19 @@ unsigned char EthernetSup::available()
                   client.print("blue");
                 }
                 printP(client, button_mid2);
+
                 // texto do botao
-                
-                
-                if (buttonState[i] == 1)
-                {
-                  client.print(buttonTextOff[i]);
-                }
-                else
-                {
-                  client.print(buttonTextOn[i]);
-                }
-                
-              
-              
-              printP(client, button_fim);
-              
+                client.print(buttonText[i]);
+                //if (buttonState[i] == 1)
+                //{
+                  //client.print(buttonTextOff[i]);
+                //}
+                //else
+                //{
+                  //client.print(buttonTextOn[i]);
+                //}
+                printP(client, button_fim);  
+              }
             }
           }
           	
@@ -189,19 +274,23 @@ unsigned char EthernetSup::available()
   return ret;
 }
 
-void EthernetSup::addButton(char pin,  char *texton,  char *textoff, char type)
+void EthernetSup::addButton(char pin,  char *texton,  char type)
 {
-  if (type == FLIP_BUTTON)
+  if (type == ONOFF_BUTTON)
   {
-    addButton(pin, texton, textoff, type, (char)0);
+    addButton(pin, texton, type, (char)0);
+  }
+  else if (type == PULSE_BUTTON)
+  {
+    addButton(pin, texton, type, (char)-1);
   }
   else
   {
-    addButton(pin, texton, textoff, type, (char)-1);
+    // invalid button type
   }
 }
 
-void EthernetSup::addButton(char pin,   char *texton,   char *textoff, char type, char state)
+void EthernetSup::addButton(char pin,   char *texton, char type, char state)
 {
   int idx = lastButton;
   if (idx < MAX_BUTTONS)
@@ -212,18 +301,53 @@ void EthernetSup::addButton(char pin,   char *texton,   char *textoff, char type
     for (int j = 0; j < MAX_TEXT_BUTTON; j++)
     {
         if (texton[j] != '\0')
-            buttonTextOn[idx][j]  = texton[j];
-        if (textoff[j] != '\0')
-            buttonTextOff[idx][j] = textoff[j];
+          buttonText[idx][j]  = texton[j];
+        //    buttonTextOn[idx][j]  = texton[j];
+        //if (textoff[j] != '\0')
+        //    buttonTextOff[idx][j] = textoff[j];
     }
     lastButton++;
   }
 }
 
+void EthernetSup::addDimmer(char id, char *textdim, unsigned char iniValue, char direction)
+{
+  addDimmer(id, textdim, iniValue, direction, 1, DIMMER_BUTTON);
+}
+
+void EthernetSup::addDimmer(char id, char *textdim, unsigned char iniValue, char direction, char step)
+{
+  addDimmer(id, textdim, iniValue, direction, step, DIMMER_BUTTON);
+}
+
+void EthernetSup::addDimmer(char id, char *textdim, unsigned char iniValue, char direction, char step, char type)
+{
+  int idx = lastButton;
+  if (idx < MAX_BUTTONS)
+  {
+    buttonId[idx]    = id;
+    buttonType[idx]  = type;
+    buttonState[idx] = direction;
+    for (int j = 0; j < MAX_TEXT_BUTTON; j++)
+    {
+        //if (textup[j] != '\0')
+        //    buttonTextOn[idx][j]  = textup[j];
+        /*if (textdown[j] != '\0')
+            buttonTextOff[idx][j] = textdown[j];*/
+        if (textdim[j] != '\0')
+          buttonText[idx][j] = textdim[j];
+            //buttonTextDim[idx][j] = textdim[j];
+    }
+    dimmerStep[idx] = step;
+    dimmerValue[idx] = iniValue;
+    lastButton++;
+  } 
+}
+
 char EthernetSup::getLastClickedButton()
 {
   char id = buttonId[buttonIdx];
-  buttonIdx = -1;
+  //buttonIdx = -1;
   return id;
 }
 
@@ -238,6 +362,17 @@ char EthernetSup::getButtonState(char id)
     }
 }
 
+char EthernetSup::getDimmerValue()
+{
+  char value = dimmerValue[buttonIdx];
+  //buttonIdx = -1;
+  return value;
+}
+
+void EthernetSup::clearButtonIdx()
+{
+  buttonIdx = -1;
+}
 
 
 
@@ -255,6 +390,19 @@ char EthernetSup::getButtonState(char id)
  *
  **********************************************************************************/
 
+static char getButtonValue(char* requestText, char* compareTo, char size)
+{
+  char ret =-1;
+  for (int i = 0; i < (MAX_TEXT_REQ - size); i++)
+  {
+    if (strncmp(compareTo, (char*)&(requestText[i]), size) == 0)
+    {
+      ret = i;
+      break;
+    }
+  }
+  return ret;
+}
 
 
 static char getButtonId(char* requestText)

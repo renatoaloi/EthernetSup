@@ -6,24 +6,19 @@
 
 #include <SPI.h>
 #include <Ethernet.h>
-
 #include "EthernetSup.h"
 
-static int requestCount = 0; 
-static char requestText[MAX_TEXT_REQ];
 static char buttonIdx = -1;
 static char lastButton = 0;
+static char isReferer = 0;
 
 static char buttonId[MAX_BUTTONS];
 static char buttonType[MAX_BUTTONS];
 static char buttonState[MAX_BUTTONS];
 static char buttonText[MAX_BUTTONS][MAX_TEXT_BUTTON];
-//static char buttonTextOn[MAX_BUTTONS][MAX_TEXT_BUTTON];
-//static char buttonTextOff[MAX_BUTTONS][MAX_TEXT_BUTTON];
 static char dimmerStep[MAX_BUTTONS];
-//static char buttonTextDim[MAX_BUTTONS][MAX_TEXT_BUTTON];
 static unsigned char dimmerValue[MAX_BUTTONS];
-
+static char dimmerDirection[MAX_BUTTONS];
 
 static void printP(EthernetClient client, const prog_uchar *str);
 static void setButtonId(char id);
@@ -32,6 +27,11 @@ static char getButtonId(char* requestText);
 static void addButton(char pin, char *texton, char *textoff, char type, char state);
 static char getButtonValue(char* requestText, char* compareTo, char size);
 
+static void findButtonId(EthernetClient client, char c);
+static void findDimmerValue(EthernetClient client, char c);
+static char checkReferer(EthernetClient client, char c);
+
+static void setDimmerDirection(char dir);
 
 EthernetServer server(80);
 
@@ -48,111 +48,80 @@ void EthernetSup::begin(unsigned char *_mac, unsigned char *_ip)
     
     for (char i = 0; i < MAX_BUTTONS; i++)
     {
-        buttonId[i] = -1;
-        buttonType[i] = -1;
-        buttonState[i] = 0;
-        for (char j = 0; j < MAX_TEXT_BUTTON; j++)
-        {
-          buttonText[i][j] = 0;
-            //buttonTextOn[i][j] = 0;
-            //buttonTextOff[i][j] = 0;
-        }
+      buttonId[i] = -1;
+      buttonType[i] = -1;
+      buttonState[i] = 0;
+      for (char j = 0; j < MAX_TEXT_BUTTON; j++)
+      {
+        buttonText[i][j] = 0;
+      }
+      dimmerStep[i] = -1;
+      dimmerValue[i] = 0;
+      dimmerDirection[i] = -1;
     }
 }
 
 unsigned char EthernetSup::available() 
 {
-    unsigned char ret = 0;
-    
-  // Character counter
-  requestCount = 0;
-  
-  // Clear request text
-  for (int i = 0; i < MAX_TEXT_REQ; i++)
-  {
-    requestText[i] = '\0';
-  }
+  unsigned char ret = 0;
   
   // listen for incoming clients
   EthernetClient client = server.available();
   if (client)
   {
-    // an http request ends with a blank line
     boolean currentLineIsBlank = true;
-    while (client.connected()) {
-      if (client.available()) {
+    boolean isReferer = false;
+    while (client.connected()) 
+    {
+      if (client.available()) 
+      {
         char c = client.read();
-        
-        //Serial.print(c);
-        
-        // Pegando texto do request
-        if (requestCount < (MAX_TEXT_REQ - 1))
-	{
-	  requestText[requestCount] = c;
-          requestCount++;
-	}
 
-        // if you've gotten to the end of the line (received a newline
-        // character) and the line is blank, the http request has ended,
-        // so you can send a reply
-        if (c == '\n' && currentLineIsBlank) {
+        if (!isReferer)
+        {
+          findButtonId(client, c);
+          findDimmerValue(client, c);
+          isReferer = checkReferer(client, c);
+        }
+
+        if (c == '\n' && currentLineIsBlank) 
+        {
           // send a standard http response header
-          client.println("HTTP/1.1 200 OK");
-          client.println("Content-Type: text/html");
-          client.println("Connection: close");  // the connection will be closed after completion of the response
-          client.println();
-          //client.println("<H2>TESTE</H2>");
-          client.println("<!DOCTYPE HTML>");
-          
-          // Verifica se algum botao foi clicado
-          char t = getButtonId(requestText);
-          
-          //Serial.println(requestText);
-          
-          //Serial.println(t, DEC);
-          
-      	  setButtonId(t);
+          printP(client, http200);
+          printP(client, contenttype);
+          printP(client, connkeep);  
+          printP(client, doctype);
 
-      	  if (buttonIdx != -1)
-      	  {
+          // Verificando o tipo de botao
+          if (buttonIdx != -1)
+          {
             if (buttonType[buttonIdx] == ONOFF_BUTTON)
-      	    {
-      	      buttonState[buttonIdx] = (buttonState[buttonIdx] ? 0 : 1);
-      	    }
+            {
+              buttonState[buttonIdx] = (buttonState[buttonIdx] ? 0 : 1);
+            }
             else if (buttonType[buttonIdx] == DIMMER_BUTTON)
             {
-              if (getButtonValue(requestText, "button_value=up", 15) != -1)
+              if (dimmerDirection[buttonIdx] == 1)
               {
-                  if (dimmerValue[buttonIdx] + dimmerStep[buttonIdx] < 255)
-                    dimmerValue[buttonIdx] += dimmerStep[buttonIdx];
-                  else
-                    dimmerValue[buttonIdx] = 255;
+                if (dimmerValue[buttonIdx] + dimmerStep[buttonIdx] < 255)
+                  dimmerValue[buttonIdx] += dimmerStep[buttonIdx];
+                else
+                  dimmerValue[buttonIdx] = 255;
               }
-              else if (getButtonValue(requestText, "button_value=down", 17) != -1)
+              else if (dimmerDirection[buttonIdx] == 2)
               {
-                  if (dimmerValue[buttonIdx] - dimmerStep[buttonIdx] > 0)
-                    dimmerValue[buttonIdx] -= dimmerStep[buttonIdx];
-                  else
-                    dimmerValue[buttonIdx] = 0;
+                if (dimmerValue[buttonIdx] - dimmerStep[buttonIdx] > 0)
+                  dimmerValue[buttonIdx] -= dimmerStep[buttonIdx];
+                else
+                  dimmerValue[buttonIdx] = 0;
               }
-
-              
             }
-      	  }
-      
-          //Serial.println(buttonIdx, DEC);
+          }
           
           printP(client, head_ini);
           printP(client, stylesheet);
           printP(client, head_fim);
           printP(client, div_ini);
-
-          
-
-          //printP(client, label_ini);
-          //client.print("buttonDown: ");
-          //client.print(getButtonValue(requestText, "button_value=down", 17), DEC);
-          //printP(client, label_fim);
           
           for (int i = 0; i < MAX_BUTTONS; i++)
           {
@@ -161,9 +130,6 @@ unsigned char EthernetSup::available()
               if (buttonType[i] == DIMMER_BUTTON)
               {
                 printP(client, dimmer_ini1);
-                //client.print("Velocidade ventilador: ");
-                //client.print("10%");
-
                 client.print(buttonText[i]);
 
                 // converting to percent
@@ -174,95 +140,65 @@ unsigned char EthernetSup::available()
                 printP(client, dimmer_ini2);
 
                 // link do dimmer UP
-                client.print("/?button_value=down");
-                client.print("&button_id=");
+                printP(client, btnid);
                 client.print(buttonId[i], DEC);
-                
-
+                printP(client, dimmerdown);
                 printP(client, dimmer_mid11); 
-
-                client.print("green");
-
+                printP(client, colorgreen);
                 printP(client, dimmer_mid12);
-
                 printP(client, dimmer_space);
                 printP(client, dimmer_space);
                 client.print("-");
                 printP(client, dimmer_space);
                 printP(client, dimmer_space);
-
-
                 printP(client, dimmer_mid2); 
 
                 // link do dimmer DOWN
-                client.print("/?button_value=up");
-                client.print("&button_id=");
+                printP(client, btnid);
                 client.print(buttonId[i], DEC);
-
-
+                printP(client, dimmerup);
                 printP(client, dimmer_mid21);
-
-                client.print("green");
-
+                printP(client, colorgreen);
                 printP(client, dimmer_mid22);
-
                 printP(client, dimmer_space);
                 printP(client, dimmer_space);
                 client.print("+");
                 printP(client, dimmer_space);
                 printP(client, dimmer_space);
-
                 printP(client, dimmer_fim); 
               }
               else
               {
                 printP(client, button_ini);
+
                 // link do botao
-                client.print("/?button_id=");
+                printP(client, btnid);
                 client.print(buttonId[i], DEC);
-                
-                //Serial.println(buttonId[i], DEC);
                 printP(client, button_mid1);
                 
                 // cor do botao
                 if (buttonState[i] == 1)
                 {
-                  client.print("red");
+                  printP(client, colorred);
                 }
                 else
                 {
-                  client.print("blue");
+                  printP(client, colorblue);
                 }
                 printP(client, button_mid2);
 
                 // texto do botao
                 client.print(buttonText[i]);
-                //if (buttonState[i] == 1)
-                //{
-                  //client.print(buttonTextOff[i]);
-                //}
-                //else
-                //{
-                  //client.print(buttonTextOn[i]);
-                //}
                 printP(client, button_fim);  
               }
             }
           }
-          	
           printP(client, div_fim);
           
           ret = 1;
           break;
         }
-        if (c == '\n') {
-          // you're starting a new line
-          currentLineIsBlank = true;
-        } 
-        else if (c != '\r') {
-          // you've gotten a character on the current line
-          currentLineIsBlank = false;
-        }
+
       }
     }
     // give the web browser time to receive the data
@@ -302,9 +238,6 @@ void EthernetSup::addButton(char pin,   char *texton, char type, char state)
     {
         if (texton[j] != '\0')
           buttonText[idx][j]  = texton[j];
-        //    buttonTextOn[idx][j]  = texton[j];
-        //if (textoff[j] != '\0')
-        //    buttonTextOff[idx][j] = textoff[j];
     }
     lastButton++;
   }
@@ -330,13 +263,8 @@ void EthernetSup::addDimmer(char id, char *textdim, unsigned char iniValue, char
     buttonState[idx] = direction;
     for (int j = 0; j < MAX_TEXT_BUTTON; j++)
     {
-        //if (textup[j] != '\0')
-        //    buttonTextOn[idx][j]  = textup[j];
-        /*if (textdown[j] != '\0')
-            buttonTextOff[idx][j] = textdown[j];*/
         if (textdim[j] != '\0')
           buttonText[idx][j] = textdim[j];
-            //buttonTextDim[idx][j] = textdim[j];
     }
     dimmerStep[idx] = step;
     dimmerValue[idx] = iniValue;
@@ -346,9 +274,7 @@ void EthernetSup::addDimmer(char id, char *textdim, unsigned char iniValue, char
 
 char EthernetSup::getLastClickedButton()
 {
-  char id = buttonId[buttonIdx];
-  //buttonIdx = -1;
-  return id;
+  return buttonId[buttonIdx];
 }
 
 char EthernetSup::getButtonState(char id)
@@ -364,9 +290,7 @@ char EthernetSup::getButtonState(char id)
 
 char EthernetSup::getDimmerValue()
 {
-  char value = dimmerValue[buttonIdx];
-  //buttonIdx = -1;
-  return value;
+  return dimmerValue[buttonIdx];
 }
 
 void EthernetSup::clearButtonIdx()
@@ -390,83 +314,6 @@ void EthernetSup::clearButtonIdx()
  *
  **********************************************************************************/
 
-static char getButtonValue(char* requestText, char* compareTo, char size)
-{
-  char ret =-1;
-  for (int i = 0; i < (MAX_TEXT_REQ - size); i++)
-  {
-    if (strncmp(compareTo, (char*)&(requestText[i]), size) == 0)
-    {
-      ret = i;
-      break;
-    }
-  }
-  return ret;
-}
-
-
-static char getButtonId(char* requestText)
-{
-    int ret = 0;
-    char c[] = { '\0', '\0', '\0' };
-    int fatorDec = 0;	
-    int found = -1;
-    int idx;
-    for (int i = 0; i < (MAX_TEXT_REQ - 11); i++)
-    {
-        if (strncmp("button_id=", (char*)&(requestText[i]), 10) == 0)
-        {
-            found = i;
-            break;
-        }
-    }
-    if (found != -1)
-    {
-        //Serial.println("found!");
-        found += 10;
-        for (int i = found; i < (MAX_TEXT_REQ - 11); i++)
-        {
-            if (strncmp(" HTTP/1.", (char*)&(requestText[i]), 8) == 0)
-                break;
-            else
-                fatorDec++;
-        }
-            
-        if (fatorDec > 0 && fatorDec <= 3)
-        {
-            idx = 0;
-            for (int i = found; i < (found + fatorDec); i++)
-            {
-                c[idx++] = requestText[i];
-            }
-            
-            for (int i = 0; i < fatorDec; i++)
-            {
-                if (i > 0) 
-                    ret *= 10;
-                ret += c[i] - '0';
-            }
-            
-            return ret;
-        }
-    }
-    return -1;
-}
-
-static char getButton(int id)
-{
-    char ret = -1;
-    for (int i = 0; i < MAX_BUTTONS; i++)
-    {
-        if (buttonId[i] == id)
-        {
-            ret = i;
-            break;
-        }
-    }
-    return ret;
-}
-
 static void setButtonId(char id)
 {
     for (int i = 0; i < MAX_BUTTONS; i++)
@@ -479,19 +326,206 @@ static void setButtonId(char id)
     }
 }
 
+static void setDimmerDirection(char dir)
+{
+  dimmerDirection[buttonIdx] = dir;
+}
+
+// Funcoes de leitura realtime, sem buffer
+static void findButtonId(EthernetClient client, char c)
+{
+  char myc = c;
+  if (myc == 'b')
+  {
+    myc = client.read();
+    if (myc == 'u')
+    {
+      myc = client.read();
+      if (myc == 't')
+      {
+        myc = client.read();
+        if (myc == 't')
+        {
+          myc = client.read();
+          if (myc == 'o')
+          {
+            myc = client.read();
+            if (myc == 'n')
+            {
+              myc = client.read();
+              if (myc == '_')
+              {
+                myc = client.read();
+                if (myc == 'i')
+                {
+                  myc = client.read();
+                  if (myc == 'd')
+                  {
+                    myc = client.read();
+                    if (myc == '=')
+                    {
+                      int imyc = 0;
+                      myc = client.read();
+                      if (myc >= '0' && myc <= '9')
+                      {
+                        imyc = (myc - '0');
+                        myc = client.read();
+                        if (myc >= '0' && myc <= '9')
+                        {
+                          imyc = (imyc * 10) + (myc - '0');
+                          myc = client.read();
+                          if (myc >= '0' && myc <= '9')
+                          {
+                            imyc = (imyc * 10) + (myc - '0');
+                          }
+                        }
+                        setButtonId(imyc);
+                      }
+                    } 
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  c = myc;
+}
+
+// Funcoes de leitura realtime, sem buffer
+static void findDimmerValue(EthernetClient client, char c)
+{
+  // Clear button value
+  char myc = c;
+
+  if (myc == 'b')
+  {
+    myc = client.read();
+    if (myc == 'b')
+    {
+      myc = client.read();
+      if (myc == 'u')
+      {
+        myc = client.read();
+        if (myc == 't')
+        {
+          myc = client.read();
+          if (myc == 't')
+          {
+            myc = client.read();
+            if (myc == 'o')
+            {
+              myc = client.read();
+              if (myc == 'n')
+              {
+                myc = client.read();
+                if (myc == '_')
+                {
+                  myc = client.read();
+                  if (myc == 'v')
+                  {
+                    myc = client.read();
+                    if (myc == 'a')
+                    {
+                      myc = client.read();
+                      if (myc == 'l')
+                      {
+                        myc = client.read();
+                        if (myc == 'u')
+                        {
+                          myc = client.read();
+                          if (myc == 'e')
+                          {
+                            myc = client.read();
+                            if (myc == '=')
+                            {
+                              myc = client.read();
+                              if (myc == 'u')
+                              {
+                                myc = client.read();
+                                if (myc == 'p')
+                                {
+                                  setDimmerDirection(1);
+                                }
+                              }
+                              else if (myc == 'd')
+                              {
+                                myc = client.read();
+                                if (myc == 'o')
+                                {
+                                  myc = client.read();
+                                  if (myc == 'w')
+                                  {
+                                    myc = client.read();
+                                    if (myc == 'n')
+                                    {
+                                      setDimmerDirection(2);
+                                    }
+                                  }
+                                }
+                              } 
+                            } 
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  c = myc;
+}
+
+static char checkReferer(EthernetClient client, char c)
+{
+  char myc = c;
+  if (myc == 'R')
+  {
+    myc = client.read();
+    if (myc == 'e')
+    {
+      myc = client.read();
+      if (myc == 'f')
+      {
+        myc = client.read();
+        if (myc == 'e')
+        {
+          myc = client.read();
+          if (myc == 'r')
+          {
+            myc = client.read();
+            if (myc == 'e')
+            {
+              myc = client.read();
+              if (myc == 'r')
+              {
+                myc = client.read();
+                if (myc == ':')
+                {
+                  return 1;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  return 0;
+}
+
 static void printP(EthernetClient client, const prog_uchar *str) 
 {
-    uint8_t buffer[PGM_CHUNK];
-    size_t bufferEnd = 0;
-    while(buffer[bufferEnd++] = pgm_read_byte(str++))
+    uint8_t pgmChar;
+    while(pgmChar = pgm_read_byte(str++))
     {
-        if (bufferEnd == PGM_CHUNK)
-        {
-            client.write(buffer, PGM_CHUNK);
-            bufferEnd = 0;
-        }
+      client.write(pgmChar);
     }
-    
-    if (bufferEnd > 1) 
-        client.write(buffer, bufferEnd - 1);
 }

@@ -6,6 +6,18 @@
 
 #define P(name)	static const prog_uchar name[] PROGMEM
 
+P(http200) = "HTTP/1.1 200 OK\r\n";
+P(contenttype) = "Content-Type: text/html\r\n";
+P(connkeep) = "Connection: close\r\n\r\n";  
+P(doctype) = "<!DOCTYPE HTML>\r\n";
+
+P(dimmerdown) = "&button_value=down";
+P(dimmerup) = "&button_value=up";
+P(btnid) = "/?button_id=";
+P(colorgreen) = "green";
+P(colorred) = "red";
+P(colorblue) = "blue";
+
 P(head_ini) = "<!DOCTYPE HTML>"
 "<HTML>"
 "<HEAD>";

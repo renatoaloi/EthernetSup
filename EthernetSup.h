@@ -9,10 +9,8 @@
 #include "Arduino.h"
 #include "html.h"
 
-#define PGM_CHUNK       10
-#define MAX_BUTTONS     8
-#define MAX_TEXT_BUTTON 11
-#define MAX_TEXT_REQ    50
+#define MAX_BUTTONS     20
+#define MAX_TEXT_BUTTON 20
 
 #define ONOFF_BUTTON    1
 #define PULSE_BUTTON    0

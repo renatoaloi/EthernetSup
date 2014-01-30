@@ -1,3 +1,9 @@
+/*
+  DimmerAC.ino - Dimmer AC sample for EthernetSup Library.
+  Created by Renato Aloi, Jan 30, 2014.
+  Released into the public domain.
+*/
+
 #include <SPI.h>
 #include <Ethernet.h>
 #include "EthernetSup.h"

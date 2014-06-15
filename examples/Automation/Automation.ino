@@ -36,20 +36,26 @@ void setup()
   
   // Registrando botoes
   //
-  // addButton(char pin, char *texton, char *textoff, char type)
+  // addButton(char pin, char *text, char type)
   //    Onde:   pin: porta do Arduino a ser acionada
-  //            texton: texto do botao para ativar o rele
-  //            textoff: texto do botao para desativar o rele
+  //            text: texto do botao 
   //            type: tipo do botao, sendo:
-  //                      FLIP_BUTTON: botao que alterna o estado entre ligado e desligado
-  //                      SWITCH_BUTTON:botao do tipo pulsar, sem alterar estado
+  //                      ONOFF_BUTTON: botao que alterna o estado entre ligado e desligado
+  //                      PULSE_BUTTON:botao do tipo pulsar, sem alterar estado
   //
-  // Obs: SWITCH_BUTTON nao precisa de textoff, apenas texton
+  // Registrando dimmers
   //
-  sup.addButton(portaLampada, "Liga Lampada", "Desliga Lampada", FLIP_BUTTON);
-  sup.addButton(portaVentilador, "Liga Ventilador", "Desliga Ventilador", FLIP_BUTTON);
-  sup.addButton(portaSentidoVentilador, "Inverter Sentido", "Inverter Sentido", FLIP_BUTTON);
-  sup.addButton(portaFechadura, "Abre Porta", "", SWITCH_BUTTON);
+  // addDimmer(char pin, char *text, char valorIni, char direction, char step)
+  //    Onde:   pin: porta do Arduino a ser acionada
+  //            text: texto do dimmer 
+  //            valorIni: valor inicial do dimmer
+  //            direction: direcao inicial do dimmer
+  //            step: quantidade de passos por acionamento
+  //
+  sup.addButton(portaLampada, "Lampada", ONOFF_BUTTON);
+  sup.addButton(portaVentilador, "Ventilador", ONOFF_BUTTON);
+  sup.addButton(portaSentidoVentilador, "Inv. Vent.", ONOFF_BUTTON);
+  sup.addButton(portaFechadura, "Porta", PULSE_BUTTON);
 }
 
 void loop()

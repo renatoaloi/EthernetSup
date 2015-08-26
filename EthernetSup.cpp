@@ -20,7 +20,7 @@ static char dimmerStep[MAX_BUTTONS];
 static unsigned char dimmerValue[MAX_BUTTONS];
 static char dimmerDirection[MAX_BUTTONS];
 
-static void printP(EthernetClient client, const prog_uchar *str);
+static void printP(EthernetClient client, const unsigned char *str);
 static void setButtonId(char id);
 static char getButton(int id);
 static char getButtonId(char* requestText);
@@ -521,7 +521,7 @@ static char checkReferer(EthernetClient client, char c)
   return 0;
 }
 
-static void printP(EthernetClient client, const prog_uchar *str) 
+static void printP(EthernetClient client, const unsigned char *str) 
 {
     uint8_t pgmChar;
     while(pgmChar = pgm_read_byte(str++))

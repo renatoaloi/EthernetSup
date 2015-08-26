@@ -4,7 +4,7 @@
   Released into the public domain.
 */
 
-#define P(name)	static const prog_uchar name[] PROGMEM
+#define P(name)	static const unsigned char name[] PROGMEM
 
 P(http200) = "HTTP/1.1 200 OK\r\n";
 P(contenttype) = "Content-Type: text/html\r\n";
